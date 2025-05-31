@@ -5,76 +5,17 @@ import com.github.houbb.sensitive.word.support.allow.WordAllows
 import com.github.houbb.sensitive.word.support.deny.WordDenys
 import com.github.houbb.sensitive.word.support.ignore.SensitiveWordCharIgnores
 import com.github.houbb.sensitive.word.support.resultcondition.WordResultConditions
+import com.github.sn0wo2.error.APIException
+import com.github.sn0wo2.error.Response
+import com.github.sn0wo2.error.prefix
 import com.github.sn0wo2.word.WordAllow
 import com.github.sn0wo2.word.WordDeny
 import io.ktor.http.*
 import io.ktor.server.application.*
-import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import org.slf4j.LoggerFactory
 
-data class Response(
-    val success: Boolean,
-    val message: String,
-    val data: Any?,
-)
-
-class APIException(
-    val statusCode: HttpStatusCode,
-    override val message: String
-) : Exception(message)
-
-const val prefix = "/v1"
-
-fun Application.configureStatusPages() {
-    install(StatusPages) {
-
-        exception<APIException> { call, cause ->
-            call.respond(
-                cause.statusCode,
-                Response(
-                    success = false,
-                    message = cause.message,
-                    data = null
-                )
-            )
-        }
-
-        exception<Throwable> { call, cause ->
-            val message = if (call.application.developmentMode) {
-                cause.message ?: "Internal Server Error"
-            } else {
-                "Internal Server Error"
-            }
-
-            cause.printStackTrace()
-
-            call.respond(
-                HttpStatusCode.InternalServerError,
-                Response(
-                    success = false,
-                    message = message,
-                    data = null
-                )
-            )
-        }
-
-        status(*HttpStatusCode.allStatusCodes.toTypedArray()) { call, status ->
-            if (status.isSuccess() && call.response.status() == null) {
-                call.respond(
-                    status,
-                    Response(
-                        success = false,
-                        message = status.description,
-                        data = null
-                    )
-                )
-            }
-        }
-    }
-}
 
 val lock = Any()
 var email = true
@@ -83,7 +24,6 @@ var ipv4 = true
 var word = true
 var bs: SensitiveWordBs? = null
 
-private val logger = LoggerFactory.getLogger("CheckController")
 
 private fun initBs() {
     bs = SensitiveWordBs.newInstance()
@@ -124,7 +64,10 @@ fun Application.configureRouting() {
             }
 
             val currentBs =
-                bs ?: throw APIException(HttpStatusCode.InternalServerError, "SensitiveWordBs not initialized")
+                bs ?: throw APIException(
+                    HttpStatusCode.InternalServerError,
+                    "SensitiveWordBs not initialized"
+                ) as Throwable
 
             val check = currentBs.contains(content)
             val response = mutableMapOf<String, Any>(
@@ -135,7 +78,7 @@ fun Application.configureRouting() {
                 response["replace_text"] = currentBs.replace(content)
             }
 
-            logger.info("content: {}, response: {}", content, response)
+            logger?.info("content: {}, response: {}", content, response)
 
             call.respond(
                 HttpStatusCode.OK,

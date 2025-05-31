@@ -1,6 +1,7 @@
 package com.github.sn0wo2
 
 import com.fasterxml.jackson.annotation.JsonInclude
+import com.github.sn0wo2.error.configureStatusPages
 import io.ktor.serialization.jackson.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.contentnegotiation.*
